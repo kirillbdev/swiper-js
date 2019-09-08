@@ -13,13 +13,21 @@
   }
 }(typeof self !== 'undefined' ? self : this, function () {
 
-  class Swiper
-  {
-    constructor(options)
-    {
-      let _ = this;
+  const Utils = {
+    renderFrame: function (callback) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          callback();
+        });
+      });
+    }
+  };
 
-      _.classes = {
+  class Swiper {
+    constructor(options) {
+      let that = this;
+
+      that.classes = {
         container: 'swiper',
         track: 'swiper-track',
         item: 'swiper-item',
@@ -29,7 +37,7 @@
         btnNext: 'swiper-next'
       };
 
-      _.defaults = {
+      that.defaults = {
         height: 500,
         startIndex: 0,
         nav: true,
@@ -39,8 +47,6 @@
         autoHeight: false,
         autoplay: false,
         autoplayTimeout: 3000,
-        mouseDrag: false,
-        touchDrag: false,
         onInit: function () {
 
         },
@@ -52,197 +58,162 @@
         }
       };
 
-      _.options = {};
-      _.calculation = {};
-      _.slider = options.el;
-      _.track = null;
-      _.nav = null;
-      _.slides = null;
-      _.slidesCount = null;
-      _.currentSlide = null;
-      _.changing = false;
+      that.options = {};
+      that.calculation = {};
+      that.slider = options.el;
+      that.track = null;
+      that.nav = null;
+      that.slides = null;
+      that.slidesCount = null;
+      that.currentSlide = null;
+      that.changing = false;
+      that.autoplayTimerId = null;
 
-      _.mouseDown = false;
-      _.touchStart = false;
-      _.drag = {
-        startX: 0,
-        endX: 0
-      };
-
-      if ( ! _.slider) {
+      if ( ! that.slider) {
         return;
       }
 
-      _.init(options);
+      that.init(options);
     }
 
-    init(options)
-    {
-      let _ = this;
+    init(options) {
+      let that = this;
 
-      _._initOptions(options);
-      _._initHtml();
-      _.initSlides();
-      _.initEvents();
-      _.setCurrentSlide(false);
+      that._initOptions(options);
+      that._initHtml();
+      that._calculateHeight();
+      that.initSlides();
+      that.initEvents();
+      that.setCurrentSlide(false);
 
-      if (_.options.autoplay) {
-
-        setInterval(() => {
-
-          _.changeSlide({
-            message: 'next'
-          });
-
-        }, _.options.autoplayTimeout);
-
+      if (that.options.autoplay) {
+        that._startAutoplayTimer();
       }
 
-      _.options.onInit.call(_);
+      that.options.onInit.call(that);
     }
 
-    _initOptions(options)
-    {
-      let _ = this;
+    _initOptions(options) {
+      let that = this;
 
-      Object.assign(_.options, _.defaults, options);
+      Object.assign(that.options, that.defaults, options);
     }
 
-    _initHtml()
-    {
-      let _ = this;
+    _initHtml() {
+      let that = this;
 
-      _.slider.classList.add(_.classes.container);
-      _.slider.style.display = 'none';
+      that.slider.classList.add(that.classes.container);
+      that.slider.style.display = 'none';
 
-      let html = '<div class="' + _.classes.track + '"' + ( ! _.options.autoHeight ? ' style="position:relative; height:' + _.options.height + 'px;"' : '') + '>';
+      let html = '<div class="' + that.classes.track + '" style="position:relative;">';
 
-      let children = _.slider.children;
+      let children = that.slider.children;
 
       for (let i = 0; i < children.length; i++) {
-        html += '<div class="' + _.classes.item + '" style="position:absolute; left:0; top:0; width:100%; height:100%;">' + children[i].outerHTML + '</div>';
+        html += '<div class="' + that.classes.item + '" style="position:absolute; left:0; top:0; width:100%; height:100%;">' + children[i].outerHTML + '</div>';
       }
 
       html += '</div>';
 
-      if (_.options.nav) {
-        html += '<div class="' + _.classes.nav + (children.length <= 1 ? ' disabled' : '') + '">';
-        html += '<button class="' + _.classes.btn + ' ' + _.classes.btnPrev + '">' + _.options.navText[0] + '</button>';
-        html += '<button class="' + _.classes.btn + ' ' + _.classes.btnNext + '">' + _.options.navText[1] + '</button>';
+      if (that.options.nav) {
+        html += '<div class="' + that.classes.nav + (children.length <= 1 ? ' disabled' : '') + '">';
+        html += '<button class="' + that.classes.btn + ' ' + that.classes.btnPrev + '">' + that.options.navText[0] + '</button>';
+        html += '<button class="' + that.classes.btn + ' ' + that.classes.btnNext + '">' + that.options.navText[1] + '</button>';
         html += '</div>';
       }
 
-      _.slider.innerHTML = html;
-      _.track = _.slider.querySelector('.' + _.classes.track);
+      that.slider.innerHTML = html;
+      that.track = that.slider.querySelector('.' + that.classes.track);
 
-      if (_.options.autoHeight) {
-        _.track.style.transition = 'height ease-in .5s';
+      if (that.options.autoHeight) {
+        that.track.style.transition = 'height ease-in .5s';
       }
 
-      _.slider.style.display = 'block';
+      that.slider.style.display = 'block';
     }
 
-    initSlides()
-    {
-      let _ = this;
+    initSlides() {
+      let that = this;
 
-      _.slides = _.track.querySelectorAll('.' + _.classes.item);
+      that.slides = that.track.querySelectorAll('.' + that.classes.item);
 
-      _.calculation.height = [];
+      that.calculation.height = [];
 
-      for (let i = 0; i < _.slides.length; i++) {
-        _.calculation.height[i] = window.getComputedStyle(_.slides[i].children[0]).height;
+      for (let i = 0; i < that.slides.length; i++) {
+        that.calculation.height[i] = window.getComputedStyle(that.slides[i].children[0]).height;
       }
 
-      _.slidesCount = _.slides.length;
-      _.currentSlide = _.options.startIndex;
+      that.slidesCount = that.slides.length;
+      that.currentSlide = that.options.startIndex;
     }
 
-    initEvents()
-    {
-      let _ = this;
+    initEvents() {
+      let that = this;
 
-      if (_.options.nav) {
+      if (that.options.nav) {
 
-        _.nav = _.slider.querySelector('.' + _.classes.nav);
+        that.nav = that.slider.querySelector('.' + that.classes.nav);
 
-        _.nav.children[0].onclick = function (event) {
-          _.changeSlide({
+        that.nav.children[0].onclick = function (event) {
+          that.changeSlide({
             message: 'prev'
           });
         };
 
-        _.nav.children[1].onclick = function (event) {
-          _.changeSlide({
+        that.nav.children[1].onclick = function (event) {
+          that.changeSlide({
             message: 'next'
           });
         };
 
       }
 
-      _._initMouseDragEvents();
-      _._initTouchDragEvents();
+      window.addEventListener('resize', function () {
+        that._calculateHeight();
+      });
     }
 
-    _initMouseDragEvents()
-    {
-      let that = this;
-
-      if ( ! that.options.mouseDrag) {
-        return;
+    _startAutoplayTimer() {
+      if (this.autoplayTimerId) {
+        clearInterval(this.autoplayTimerId);
       }
 
-      that.slider.addEventListener('mousedown', function (event) {
-        that.mouseDown = true;
-        that.drag.startX = event.clientX;
-        document.body.style.cursor = 'grab';
-      });
+      this.autoplayTimerId = setInterval(() => {
 
-      that.slider.addEventListener('mouseup', function (event) {
-        that.mouseDown = false;
-        that.drag.endX = event.clientX;
-        document.body.style.cursor = 'default';
+        this.changeSlide({
+          message: 'next'
+        });
 
-        that.updateAfterDrag('mouse');
-      });
+      }, this.options.autoplayTimeout);
     }
 
-    _initTouchDragEvents()
-    {
-      let that = this;
+    _calculateHeight() {
+      let height;
 
-      if ( ! that.options.touchDrag) {
-        return;
+      if (typeof this.options.height === 'object') {
+        for (let media in this.options.height) {
+          if (this.options.height.hasOwnProperty(media)) {
+            if (window.innerWidth >= parseInt(media)) {
+              height = this.options.height[media];
+            }
+          }
+        }
+      }
+      else {
+        height = this.options.height;
       }
 
-      that.slider.addEventListener('touchstart', function (event) {
-        if (event.changedTouches.length > 1) {
-          return;
-        }
-
-        that.touchStart = true;
-        that.drag.startX = event.changedTouches[0].clientX;
-      });
-
-      that.slider.addEventListener('touchend', function (event) {
-        if (that.touchStart) {
-          that.touchStart = false;
-          that.drag.endX = event.changedTouches[0].clientX;
-
-          that.updateAfterDrag('touch');
-        }
-      });
+      this.track.style.height = typeof height === 'number' ? height + 'px' : height;
     }
 
-    updateAfterDrag(dragType)
-    {
+    updateAfterDrag(dragType) {
       let that = this;
 
       const movement = that.drag.endX - that.drag.startX;
       const movementDistance = Math.abs(movement);
       const threshold =
-        dragType == 'mouse' ? 300 :
-        dragType == 'touch' ?
+        dragType === 'mouse' ? 300 :
+        dragType === 'touch' ?
         parseInt(window.innerWidth * 0.3) :
         0;
 
@@ -258,41 +229,44 @@
       }
     }
 
-    changeSlide(data)
-    {
-      let _ = this;
+    changeSlide(data) {
+      let that = this;
 
-      if (_.slides.length <= 1) {
+      if (that.slides.length <= 1) {
         return;
       }
 
-      if (_.changing) {
+      if (that.changing) {
         return;
       }
 
-      _.prevSlide = _.slides[_.currentSlide];
-      if (data['message'] == 'next') {
+      that.prevSlide = that.slides[that.currentSlide];
+      if (data['message'] === 'next') {
 
-        if (_.currentSlide + 1 >= _.slidesCount) {
-          _.currentSlide = 0;
+        if (that.currentSlide + 1 >= that.slidesCount) {
+          that.currentSlide = 0;
         }
         else {
-          _.currentSlide++;
+          that.currentSlide++;
         }
 
       }
-      else if (data['message'] == 'prev') {
+      else if (data['message'] === 'prev') {
 
-        if (_.currentSlide - 1 < 0) {
-          _.currentSlide = _.slidesCount - 1;
+        if (that.currentSlide - 1 < 0) {
+          that.currentSlide = that.slidesCount - 1;
         }
         else {
-          _.currentSlide--;
+          that.currentSlide--;
         }
 
       }
 
-      _.setCurrentSlide();
+      if (that.options.autoplay) {
+        that._startAutoplayTimer();
+      }
+
+      that.setCurrentSlide();
     }
 
     /**
@@ -301,8 +275,7 @@
      * Показывает следующий слайд
      * Для использования из вне
      */
-    next()
-    {
+    next() {
       this.changeSlide({
         message: 'next'
       });
@@ -314,8 +287,7 @@
      * Показывает предыдущий слайд
      * Для использования из вне
      */
-    prev()
-    {
+    prev() {
       this.changeSlide({
         message: 'prev'
       });
@@ -327,8 +299,7 @@
      * Показывает слайд по индексу
      * Для использования из вне
      */
-    slideTo(index)
-    {
+    slideTo(index) {
       if (this.changing) {
         return;
       }
@@ -342,45 +313,43 @@
       this.setCurrentSlide();
     }
 
-    setCurrentSlide(animation)
-    {
-      let _ = this;
+    setCurrentSlide(animation) {
+      let that = this;
 
-      _.changing = true;
+      that.changing = true;
 
       if (typeof animation === 'undefined') {
         animation = true;
       }
 
-      if (_.prevSlide) {
-        _._setSlideZIndex(_.prevSlide, 5);
-        _.prevSlide.classList.remove('active');
-        _.prevSlide.classList.add('changing');
+      if (that.prevSlide) {
+        that._setSlideZIndex(that.prevSlide, 5);
+        that.prevSlide.classList.remove('active');
+        that.prevSlide.classList.add('changing');
       }
 
-      _.slides.forEach(function (slide, index) {
+      that.slides.forEach(function (slide, index) {
 
-        if (index === _.currentSlide) {
+        if (index === that.currentSlide) {
 
-          if (animation && _.options.changeDelay > 0) {
+          if (animation && that.options.changeDelay > 0) {
             setTimeout(function () {
-              _._setSlideActive(slide);
-            }, _.options.changeDelay);
+              that._setSlideActive(slide);
+            }, that.options.changeDelay);
           }
           else {
-            _._setSlideActive(slide);
+            that._setSlideActive(slide);
           }
 
         }
-        else if (slide !== _.prevSlide) {
-          _._setSlideInactive(slide);
+        else if (slide !== that.prevSlide) {
+          that._setSlideInactive(slide);
         }
 
       });
     }
 
-    _setSlideActive(slide)
-    {
+    _setSlideActive(slide) {
       this._redraw(() => {
         slide.style.zIndex = 10;
 
@@ -411,34 +380,23 @@
       });
     }
 
-    _setSlideInactive(slide)
-    {
+    _setSlideInactive(slide) {
       this._setSlideZIndex(slide, 1);
     }
 
-    _setSlideZIndex(slide, zIndex, callback)
-    {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-      slide.style.zIndex = zIndex;
+    _setSlideZIndex(slide, zIndex, callback) {
+      Utils.renderFrame(() => {
+        slide.style.zIndex = zIndex;
 
-      if (typeof callback === 'function') {
-        callback.call();
-      }
-
-    });
-    });
+        if (typeof callback === 'function') {
+          callback.call();
+        }
+      });
     }
 
-    _redraw(callback, delay)
-    {
-
+    _redraw(callback, delay) {
       let draw = function () {
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-          callback.call();
-        });
-      });
+        Utils.renderFrame(callback);
       };
 
       if (delay) {
@@ -447,9 +405,7 @@
       else {
         draw();
       }
-
     }
-
   }
 
   return Swiper;

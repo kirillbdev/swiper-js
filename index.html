@@ -3,9 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <title>Swiper js Example</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="/swiper-js.css">
 </head>
 <body>
+  <style>
+
+  </style>
   <div id="slider">
     <img src="/img/slide-1.jpg">
     <img src="/img/slide-2.jpg">
@@ -14,7 +18,12 @@
   <script>
     new Swiper({
       el: document.getElementById('slider'),
-      autoHeight: true
+      height: {
+        0: '100vh',
+        768: 600,
+        1000: 900
+      },
+      autoplay: true
     });
   </script>
 </body>
